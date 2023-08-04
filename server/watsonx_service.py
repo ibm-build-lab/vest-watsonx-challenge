@@ -1,8 +1,10 @@
 import json
-import os
-
 import requests
+from os import getenv
 from flask import Blueprint
+from dotenv import load_dotenv
+from utils import get_access_token
+from logging import getLogger, DEBUG, INFO, StreamHandler
 
 api = Blueprint('api', __name__)
 
@@ -10,8 +12,10 @@ WATSONX_BAM_URL = "https://us-south.ml.cloud.ibm.com/ml/v1-beta/generation/text?
 
 CLOUD_IAM_URL = "https://iam.cloud.ibm.com/identity/token"
 
-WATSONX_CLOUD_API_KEY = os.getenv("WATSONX_CLOUD_API_KEY")
-WATSONX_PROJECT_ID = os.getenv("WATSONX_PROJECT_ID")
+load_dotenv()
+WATSONX_CLOUD_API_KEY = getenv("WATSONX_CLOUD_API_KEY")
+WATSONX_PROJECT_ID = getenv("WATSONX_PROJECT_ID")
+ENV = getenv("ENV")
 
 HEADERS = {
   'accept': 'application/json',
@@ -19,10 +23,11 @@ HEADERS = {
   'Authorization': 'Bearer '
 }
 
-def get_access_token():
-    print("requesting access token")
-    r = requests.post(CLOUD_IAM_URL, data={"grant_type": "urn:ibm:params:oauth:grant-type:apikey", "apikey": WATSONX_CLOUD_API_KEY})
-    return r.json()["access_token"]
+# Set up logger.
+logger = getLogger('watsonx_service') 
+debug_level = DEBUG if ENV == 'development' else INFO
+logger.setLevel(debug_level)
+logger.addHandler(StreamHandler())
 
 def structure_prompt(question, article):
   prompt_init = "Answer the following question using only information from the article. If there is no good answer in the article, say \"I don't know\"."
@@ -30,10 +35,10 @@ def structure_prompt(question, article):
   return structured_query
 
 
-def query_watsonx(question, article, max_new_tokens = 20, min_new_tokens = 0, project_id = WATSONX_PROJECT_ID, access_token = None):
+async def query_watsonx(question, article, max_new_tokens = 20, min_new_tokens = 0, project_id = WATSONX_PROJECT_ID, access_token = None):
   prompt = structure_prompt(question, article)
   if access_token is None:
-      access_token = get_access_token()
+      access_token = await get_access_token('watsonx')
 
   prompt_input = prompt.replace("\n", "\\n")
   headers_with_token = HEADERS.copy()
@@ -56,7 +61,10 @@ def query_watsonx(question, article, max_new_tokens = 20, min_new_tokens = 0, pr
   except Exception as e:
      print("Error querying watsonx service")
      print(f'caught {type(e)} with nested {e.exceptions}')
-   
-  watsonx_output = response.json()['results'][0]['generated_text']
-  return watsonx_output
-   
+
+  status = response.status_code
+  if status == 200:
+    watsonx_output = response.json()['results'][0]['generated_text']
+    return { "answer": watsonx_output, "Error": None }
+  else:
+     return { "Error": json.loads(response.text).get("errors", [{}])[0].get("message", "An error occurred. Please try again.") }

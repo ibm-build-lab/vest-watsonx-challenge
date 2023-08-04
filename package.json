@@ -9,15 +9,14 @@
     "dev": "concurrently --kill-others \"npm run dev:slack\" \"npm run dev:server\" \"npm run dev:client-live\"",
     "dev:client": "npm run build:watch --workspace=client",
     "dev:client-live": "npm run dev --workspace=client",
-    "dev:server": "python3 ./server/server.py",
+    "dev:server": "nodemon --watch server --ignore './server/slack*.py' ./server/server.py",
+    "dev:slack": "nodemon --watch './server/slack*.py' ./server/slack_app.py",
     "docker:build": "./create-image.sh",
-    "docker:run": "concurrently \"docker run -p 8000:5000 --rm --name $npm_package_name $npm_package_name:$npm_package_version\" \"opener http://localhost:8000\"",
+    "docker:run": "concurrently \"docker run -p 8000:5001 --rm --name $npm_package_name $npm_package_name:$npm_package_version\" \"opener http://localhost:8000\"",
     "docker:clean": "./clean-containers.sh",
     "docker:start": "npm run docker:clean && npm run docker:build && npm run docker:run",
     "var:image-name": "echo ${npm_package_name}",
     "var:image-version": "echo ${npm_package_version}",
-    "dev:slack": "nodemon --watch slack ./slack/slack_app.py",
-    "ngrok": "./ngrok.sh",
     "lint:openapi": "lint-openapi -e ./openapi.json"
   },
   "workspaces": [
