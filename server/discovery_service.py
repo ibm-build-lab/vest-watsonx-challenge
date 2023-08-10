@@ -1,9 +1,10 @@
 
-from flask import Blueprint
-from bs4 import BeautifulSoup
-import requests
 import os
 import re
+
+import requests
+from bs4 import BeautifulSoup
+from flask import Blueprint
 
 api = Blueprint('api', __name__)
 
