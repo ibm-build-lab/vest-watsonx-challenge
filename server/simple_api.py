@@ -4,6 +4,8 @@ from discovery_service import query_discovery
 
 api = Blueprint('api', __name__)
 
+ACCEPTED_PRODUCTS = ['MAXIMO', 'INSTANA']
+
 @api.route("/rand", methods = ['GET'])
 def random_num():
     """Simple REST API example to be called from frontend"""
@@ -41,6 +43,29 @@ def discovery_query():
     if question is None:
         return make_response('Required field "question" is missing from body', 400, headers)
 
-    discovery_result = query_discovery(question)
+    product = request.get_json().get('product')
+    if product is None or (product.upper() not in ACCEPTED_PRODUCTS):
+        product = 'ALL'
+
+    discovery_result = query_discovery(question, product)
     json_response = jsonify({"answer": discovery_result})
+    return make_response(json_response, 200, headers)
+
+@api.route("/question", methods = ['POST'])
+def question_api():
+    headers = { "Content-Type": "application/json" }
+    
+    question = request.get_json().get('question')
+    if question is None:
+        return make_response('Required field "question" is missing from body', 400, headers)
+    
+    product = request.get_json().get('product')
+    if product is None or (product.upper() not in ACCEPTED_PRODUCTS):
+        product = 'ALL'
+
+    article = query_discovery(question, product.upper())
+
+    # watsonx_result = query_watsonx(question, article)
+    # TODO: Replce article response with watsonx_result once watsonx service is available
+    json_response = jsonify({"answer": article})
     return make_response(json_response, 200, headers)
