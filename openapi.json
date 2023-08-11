@@ -22,9 +22,81 @@
     }
   ],
   "paths": {
+    "/api/question": {
+      "post": {
+        "operationId": "askQuestion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "description": "Question to be asked",
+                    "example": "What is Maximo?"
+                  },
+                  "product": {
+                    "type": "string",
+                    "enum": [
+                      "Maximo",
+                      "Instana",
+                      "Turbonomic",
+                      "Envizi",
+                      "QRadar",
+                      "Watson Assistant",
+                      "WatsonX.ai",
+                      "WatsonX.data",
+                      "WatsonX.governance"
+                    ],
+                    "description": "The product to which this question pertains",
+                    "example": "Maximo"
+                  }
+                },
+                "required": ["question"]
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "answer": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["answer"]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["error"],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/discovery/query": {
       "post": {
-        "summary": "Submits a question to watsonX for a generative AI response",
         "operationId": "queryDiscovery",
         "requestBody": {
           "content": {
@@ -34,10 +106,7 @@
                 "properties": {
                   "origin": {
                     "type": "string",
-                    "enum": [
-                      "SLACK",
-                      "WA"
-                    ],
+                    "enum": ["SLACK", "WA"],
                     "description": "From where did the question originate",
                     "example": "WA"
                   },
@@ -63,12 +132,11 @@
                     "example": "Maximo"
                   }
                 },
-                "required": [
-                  "question"
-                ]
+                "required": ["question"]
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -77,9 +145,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "answer"
-                  ],
+                  "required": ["answer"],
                   "properties": {
                     "answer": {
                       "type": "string"
@@ -95,9 +161,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": [
-                    "error"
-                  ],
+                  "required": ["error"],
                   "properties": {
                     "error": {
                       "type": "string"
