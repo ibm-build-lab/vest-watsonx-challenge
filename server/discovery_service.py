@@ -1,11 +1,10 @@
 
-from flask import Blueprint
-from bs4 import BeautifulSoup
-import requests
 import os
 import re
-# from ibm_watson import DiscoveryV2
-# from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
+
+import requests
+from bs4 import BeautifulSoup
+from flask import Blueprint
 
 api = Blueprint('api', __name__)
 
@@ -14,34 +13,28 @@ CLOUD_IAM_URL = "https://iam.cloud.ibm.com/identity/token"
 DISC_URL = os.getenv('WATSON_DISCOVERY_URL')
 DISC_PROJ_NAME = os.getenv('WATSON_DISCOVERY_PROJECT_NAME')
 DISC_PROJ_ID = os.getenv('WATSON_DISCOVERY_PROJECT_ID')
-DISC_COLLECTION = os.getenv("WATSON_DISCOVERY_COLLECTION_NAME")
+DISC_MAXIMO_DOCS = os.getenv('DISCOVERY_MAXIMO_DOCS')
+DISC_MAXIMO_WEB = os.getenv('DISCOVERY_MAXIMO_WEB')
+DISC_INSTANA_DOCS = os.getenv('DISCOVERY_INSTANA_DOCS')
+DISC_INSTANA_WEB = os.getenv('DISCOVERY_INSTANA_WEB')
 DISC_KEY = os.getenv("WATSON_DISCOVERY_API_KEY")
 
-print(DISC_COLLECTION)
+collection_dict = {
+    'MAXIMO': [DISC_MAXIMO_DOCS, DISC_MAXIMO_WEB],
+    'INSTANA': [DISC_INSTANA_DOCS, DISC_INSTANA_WEB],
+    'ALL': [DISC_INSTANA_WEB, DISC_INSTANA_DOCS, DISC_MAXIMO_DOCS, DISC_MAXIMO_WEB]
+}
+
 print(DISC_PROJ_NAME)
-print(DISC_PROJ_ID)
-print(DISC_URL)
+print(DISC_MAXIMO_DOCS)
+print(DISC_MAXIMO_WEB)
+print(DISC_INSTANA_DOCS)
+print(DISC_INSTANA_WEB)
 
 def get_access_token():
     print("making access token request")
     r = requests.post(CLOUD_IAM_URL, data={"grant_type": "urn:ibm:params:oauth:grant-type:apikey", "apikey": DISC_KEY})
     return r.json()["access_token"]
-
-def get_collection_id(token, collection_name):
-    collections_url = DISC_URL + "/v2/projects/" + DISC_PROJ_ID + "/collections?version=2023-03-31"
-    print("Grab collection id values: " + collections_url)
-    collections = requests.get(collections_url, 
-                               headers={'Authorization': 'Bearer ' + token})
-    resp = collections.json()
-
-    for item in resp['collections']:
-        if item['name'] == collection_name:
-            collection_id = item['collection_id']
-            print('match found - return collection_id: ' + collection_id)
-            return collection_id
-
-    print('collection name not found: ' + collection_name)
-    return None
 
 def sanitize_text(original):
     print('encoding original string: ')
@@ -53,20 +46,16 @@ def sanitize_text(original):
     perfecttext = re.sub(' +', ' ', perfecttext).strip('"')
     return perfecttext
 
-def query_discovery(question):
+def query_discovery(question, product):
     token = get_access_token()
     print("received access token")
 
-    collection_id = get_collection_id(token, DISC_COLLECTION)
-
+    collection_ids = collection_dict[product]
     query_url = DISC_URL + "/v2/projects/" + DISC_PROJ_ID + "/query?version=2023-03-31"
     query_body = {
-        'collection_ids': [collection_id],
+        'collection_ids': collection_ids,
         'query': 'text:'+question,
-        'passages': {
-            'enabled': True,
-            'per_document': True
-        }
+        'passages': {'enabled': True, 'per_document': True}
     }
 
     print('query discovery documents: ' + query_url)
