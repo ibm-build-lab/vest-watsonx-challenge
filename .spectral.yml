@@ -1,0 +1,3 @@
+extends: "@ibm-cloud/openapi-ruleset"
+rules:
+  ibm-enum-casing-convention: off

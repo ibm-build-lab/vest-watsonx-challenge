@@ -17,7 +17,8 @@
     "var:image-name": "echo ${npm_package_name}",
     "var:image-version": "echo ${npm_package_version}",
     "dev:slack": "nodemon --watch slack ./slack/slack_app.py",
-    "ngrok": "./ngrok.sh"
+    "ngrok": "./ngrok.sh",
+    "lint:openapi": "lint-openapi -e ./openapi.json"
   },
   "workspaces": [
     "client"
@@ -33,6 +34,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "concurrently": "^8.2.0",
+    "ibm-openapi-validator": "^1.4.1",
     "nodemon": "^3.0.1",
     "opener": "^1.5.2"
   }
