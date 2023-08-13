@@ -23,7 +23,7 @@ env:
   CE_PROJECT_ID: d4080f71-205d-47f1-9c08-56afed43d237
   APP_NAME: flask-test
   ICR_SECRET_NAME: ce-auto-icr-private-global
-  PORT: 5000
+  PORT: 5001
   MIN_SCALE: 1
   MAX_SCALE: 5
 

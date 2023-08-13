@@ -1,12 +1,14 @@
 """Module containing simple REST Flask server."""
 import os
+from logging import getLogger, DEBUG, INFO, StreamHandler
 from operator import itemgetter
 from dotenv import load_dotenv
 from flask import Flask, send_from_directory
 from simple_api import api
 
 DEFAULT_VALUES = {
-    'PORT': 5000,
+    # https://stackoverflow.com/questions/72795799/how-to-solve-403-error-with-flask-in-python
+    'PORT': 5001,
     'ENV': 'development',
     'HOST': '0.0.0.0'
 }
@@ -28,11 +30,18 @@ def other(path):
     """Path for all other static files"""
     return send_from_directory('../client/dist', path)
 
+
 if __name__ == "__main__":
+    # Set up logger.
+    logger = getLogger('server') 
+    debug_level = DEBUG if ENV == 'development' else INFO
+    logger.setLevel(debug_level)
+    logger.addHandler(StreamHandler())
+
     if ENV == 'development':
-        print('Start server in DEV mode')
+        logger.info('Start Flask server in DEV mode')
         app.run(debug=True, port=PORT)
     else:
-        print('Starting server in PROD mode')
+        logger.info('Starting Flask server in PROD mode')
         from waitress import serve
         serve(app, host=HOST, port=PORT)

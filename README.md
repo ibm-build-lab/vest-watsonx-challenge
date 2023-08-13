@@ -32,7 +32,7 @@ npm run dev
 
 With this, the development version of the client should now be live at `http://localhost:5173/`.
 
-> Note that the development version of the server will be hosted on port 5000. Backend API requests to `/api/*` will be proxied via the vite dev server.
+> Note that the development version of the server will be hosted on port 5001. Backend API requests to `/api/*` will be proxied via the vite dev server.
 
 You also have the option to run
 
@@ -40,7 +40,7 @@ You also have the option to run
 npm run dev-static
 ```
 
-Much like the previous command it will stand up a development instance of the back-end service at port 5000, however, instead of serving the front-end via the vite dev server the back-end instead serves the static files and will rebuild them on any changes. 
+Much like the previous command it will stand up a development instance of the back-end service at port 5001, however, instead of serving the front-end via the vite dev server the back-end instead serves the static files and will rebuild them on any changes. 
 
 > Any changes made to the client application will result in an automatic rebuild, however, if viewing the webpage you will need to refresh to see changes.
 
@@ -60,10 +60,10 @@ There are some docker utility commands in `package.json` as well, such as:
 ## Slack App testing for local development:
 
 - Get latest slack env values from 1Password
-- Install the ngrok app from [https://ngrok.com/](https://ngrok.com/)
 - Join the [team hackathon slack](https://join.slack.com/t/resell-lab-ibm/shared_invite/zt-20ehtfi1f-1zUl2F6_xlV0NS7EDeJSVg)
 - Join the workspace channel `hackathon-bot`
-- Contact Karsten to get an auth token for NGROK. (The slack app only supports 1 events Request URL, so getting a token from Karsten will allow us to all start a tunnel on the same ngrok URL)
-- Authenticate your ngrok client: in your terminal type `ngrok config add-authtoken <AUTH_TOKEN>`
-- Run `npm run ngrok` alongside the running Flask server in order to allow slack to talk to your local server
-- Try messaging `start` in the hackathon-bot slack channel and looking at server logs to see how everything works.
+- Start the Flask app and slack app with `npm run dev`
+- Try:
+  - Mention the bot with `@resell-bot` in the hackathon-bot slack channel and looking at server logs to see how everything works.
+  - Slash command `/resell`
+  - Open the resell-bot home page
