@@ -1,22 +1,32 @@
 import os
 import logging
+import asyncio
 from dotenv import load_dotenv
 from slack_bolt.app.async_app import AsyncApp
 from operator import itemgetter
 from simple_api import make_queries
-from utils import pretty_json
-import asyncio
 from slack_bolt.adapter.socket_mode.async_handler import AsyncSocketModeHandler
 from server import app
 from simple_api import ACCEPTED_PRODUCTS
+from slack_views import HelpBlock
+from utils import pretty_json
 
 DEFAULT_VALUES = {
     'ENV': 'development'
 }
 
+# For some reason we can't get the human readable channel name from app_mention event.
+CHANNEL_MAP = {
+    'C05N0P844F7': 'hackathon-bot-dev',
+    'C05KDDPF9QF': 'hackathon-bot',
+    'C05MXM97B25': 'instana',
+    'C05MK2DB8TC': 'maximo'
+}
+
 # access environment variables
 load_dotenv()
 ENV, SLACK_BOT_TOKEN, SOCKET_TOKEN = itemgetter('ENV', 'SLACK_BOT_TOKEN', 'SOCKET_TOKEN')({ **DEFAULT_VALUES, **dict(os.environ) })
+is_dev = ENV == 'development'
 
 # Set up slack_app logger instance
 logger = logging.getLogger('slack_app')
@@ -44,71 +54,68 @@ def determin_product(channel, question):
     
     return product
 
-# SLASH COMMANDS
-# Slash commands must be set in Slack app configuration: https://api.slack.com/apps/A05KT2RCM39/slash-commands
-@slack_app.command("/resell")
-async def command_resell(ack, body, say, client):
-    # https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html#slack_bolt.kwargs_injection.args.Args.context
-    channel_name, channel_id, user_id, user_name, text = itemgetter('channel_name', 'channel_id', 'user_id', 'user_name', 'text')(body)
+def is_dev_channel(n):
+    logger.info(f"channel name: {n}")
+    return n == "hackathon-bot-dev"
 
-    if text:
-        # Acknowledge receipt
-        await ack()
-        product = determin_product(channel_name.strip().upper(), text.strip().upper())
-        # Message only visible to user.
-        await client.chat_postEphemeral(
-            channel=channel_id,
-            text=f"Querying WatsonX for: {text}...",
-            user=user_id
-        )
-        res = await make_queries(text, product)
-        logger.info(res)
-        text = res["Error"] if res["Error"] else res["answer"]
-        await client.chat_postEphemeral(
-            channel=channel_id,
-            text=text,
-            user=user_id
-        )
-    else:
-        # Acknowledge receipt
-        await ack()
-        # TODO: add more sophisticated message
-        await client.chat_postEphemeral(
-            channel=channel_id,
-            text=f"Hi, <@{user_id}>! How can I help?",
-            user=user_id
-        )
+# SLASH COMMANDS
+
+# Slash commands must be set in Slack app configuration: https://api.slack.com/apps/A05KT2RCM39/slash-commands
+@slack_app.command("/resell-bot")
+async def command_resell(ack, body, client):
+    # https://slack.dev/bolt-python/api-docs/slack_bolt/kwargs_injection/args.html#slack_bolt.kwargs_injection.args.Args.context
+    channel_name, channel_id, user_id, text = itemgetter('channel_name', 'channel_id', 'user_id', 'text')(body)
+
+    # Separate PROD & DEV
+    if (is_dev and is_dev_channel(channel_name)) or (not is_dev and not is_dev_channel(channel_name)):
+        if text and text != "help":
+            # Acknowledge receipt
+            await ack()
+            product = determin_product(channel_name.strip().upper(), text.strip().upper())
+            # Message only visible to user.
+            await client.chat_postEphemeral(
+                channel=channel_id,
+                text=f"{'DEV_BOT - ' if is_dev else ''}Querying WatsonX for: {text}...",
+                user=user_id
+            )
+            res = await make_queries(text, product)
+            logger.info(res)
+            text = res["Error"] if res["Error"] else res["answer"]
+            await client.chat_postEphemeral(
+                channel=channel_id,
+                text=text,
+                user=user_id
+            )
+        else:
+            # Acknowledge receipt
+            await ack()
+            help_block = HelpBlock('help', user_id, channel_id, is_dev)
+            message = help_block.get_message_payload()
+            await client.chat_postEphemeral(**message)
 
 # EVENT HANDLERS
 @slack_app.event("app_mention")
-async def event_mention(body, event, ack, say, client):
-    channel_name = body.get('channel_name', '')
+async def event_mention(event, ack, say, client):
+    channel_id = event.get('channel', '') # Here channel_id is called channel
+    channel_name = CHANNEL_MAP.get(channel_id, '')
     original_text = event.get('text', '')
     text = original_text.lower().strip()
     user_id = event.get('user')
 
-    # App encoded username is part of text here
-    if text == "<@u05ll88u02v>" or text == "<@u05ll88u02v> help":
-        # Add more sophisticated message here.
-        # message = {
-        #     "channel": channel,
-        #     "username": "Resell Bot",
-        #     "blocks": [{
-        #         "type": "section",
-        #         "text": {
-        #             "type": "mrkdwn",
-        #             "text": (f"Hi , <@{user_id}>! How can I help?")
-        #         }
-        #     }]
-        # }
-        # await client.chat_postMessage(**message)
-        await say(f"Hi , <@{user_id}>! How can I help?")
-    else:
-        await say(f"Querying WatsonX for: {original_text[15:]}...")
-        product = determin_product(channel_name.strip().upper(), text.strip().upper())
-        res = await make_queries(text[15:], product)
-        text = res["Error"] if res["Error"] else res["answer"]
-        await say(text)
+    # Separate PROD & DEV
+    if (is_dev and is_dev_channel(channel_name)) or (not is_dev and not is_dev_channel(channel_name)):
+        # App encoded username is part of text here
+        if text == "<@u05ll88u02v>" or text == "<@u05ll88u02v> help":
+            help_block = HelpBlock('help', user_id, channel_id, is_dev)
+            message = help_block.get_message_payload()
+            await client.chat_postMessage(**message)
+        else:
+            await ack()
+            await say(f"{'DEV_BOT - ' if is_dev else ''}Querying WatsonX for: {original_text[15:]}...")
+            product = determin_product(channel_name.strip().upper(), text.strip().upper())
+            res = await make_queries(text[15:], product)
+            text = res["Error"] if res["Error"] else res["answer"]
+            await say(text)
 
 # Just for debugging...
 @slack_app.event("message")
@@ -121,149 +128,44 @@ async def event_message(event):
 
 # App Home tab.
 @slack_app.event("app_home_opened")
-async def event_home_opened(client, event, logger):
+async def event_home_opened(client, ack, event, logger):
+    await ack()
+    view = event.get("view", {})
+    view_id = view.get("id, '")
+    logger.error(view_id)
+    user_id = event["user"]
+    # App home is distinct for user viewing; no need to separate PROD and DEV views
+    help_block = HelpBlock('home', user_id, None, is_dev)
+    message = help_block.get_message_payload()
+    blocks = message.get("blocks", [])
+    # In development, PROD and DEV will both try and update home view. Wait until PROD updates, then do DEV update
+    if is_dev:
+        import time
+        time.sleep(2)
     try:
-        await client.views_publish(
-            user_id=event["user"],
-            view={
-                "type": "home",
-                "callback_id": "home_view",
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "Welcome to the Resell Lab App! :tada:"
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "You can ask me questions to get information about various technologies on the <https://vest.buildlab.cloud|Resell Lab website>."
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "Use: `@resell <question>` to ask a question about one of the technologies, such as Maximo or Instana."
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "Use: `/resell <question>` to ask a private question about a technology."
-                        }
-                    }
-                ]
-            }
-    )
+        if not view_id:
+            await client.views_publish(
+                user_id=user_id,
+                view={
+                    "type": "home",
+                    "callback_id": "home_view",
+                    "blocks": blocks
+                }
+            )
+        else:
+            await client.views_update(
+                user_id=user_id,
+                view_id=view_id,
+                view={
+                    "type": "home",
+                    "callback_id": "home_view",
+                    "blocks": blocks
+                }
+            )
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
+        await ack('Sorry, an error occurred.')
 
-
-# Old stuff just to keep for reference...
-
-# ACTION HANDLERS
-# @slack_app.action("action-id")
-# def action(ack):
-#     ack()
-
-
-# # In memory storage for illustration purposes
-# db = {}
-
-# def onboard(user_id: str, channel: str, client: WebClient):
-#     test_block = TestBlock(channel)
-
-#     # Get the message payload
-#     message = test_block.get_message_payload()
-
-#     # Post the message in Slack
-#     response = client.chat_postMessage(**message)
-
-#     # Capture the timestamp of the message we've just posted so
-#     # we can use it to update the message after a user
-#     # has completed a task.
-#     test_block.timestamp = response["ts"]
-
-#     # Save the message sent to in memory "DB"
-#     if channel not in db:
-#         db[channel] = {}
-#     db[channel][user_id] = test_block
-
-
-# # Note: Bolt provides a WebClient instance as an argument to the listener function
-# @slack_app.event("team_join")
-# def handle_message(event, client):
-#     """Create and send an onboarding welcome message to new users. Save the
-#     time stamp of this message so we can update this message in the future.
-#     """
-#     # Get the id of the Slack user associated with the incoming event
-#     user_id = event.get("user", {}).get("id")
-
-#     # Open a DM with the new user.
-#     response = client.conversations_open(users=user_id)
-#     channel = response["channel"]["id"]
-
-#     # Post the onboarding message.
-#     onboard(user_id, channel, client)
-
-
-# # When a users adds an emoji reaction
-# @slack_app.event("reaction_added")
-# def update_emoji(event, client):
-#     """Update the onboarding welcome message after receiving a "reaction_added"
-#     event from Slack. Update timestamp for welcome message as well.
-#     """
-#     # Get the ids of the Slack user and channel associated with the incoming event
-#     channel_id = event.get("item", {}).get("channel")
-#     user_id = event.get("user")
-
-#     if channel_id not in db:
-#         return
-
-#     # Get the original tutorial sent.
-#     test_block = db[channel_id][user_id]
-
-#     # Mark the reaction task as completed.
-#     test_block.reaction_task_completed = True
-
-#     # Get the new message payload
-#     message = test_block.get_message_payload()
-
-#     # Post the updated message in Slack
-#     updated_message = client.chat_update(**message)
-#     print(updated_message)
-
-
-# # When a users pins a message the type of the event will be 'pin_added'.
-# @slack_app.event("pin_added")
-# def update_pin(event, client):
-#     """Update the onboarding welcome message after receiving a "pin_added"
-#     event from Slack. Update timestamp for welcome message as well.
-#     """
-#     # Get the ids of the Slack user and channel associated with the incoming event
-#     channel_id = event.get("channel_id")
-#     user_id = event.get("user")
-
-#     # Get the original tutorial sent.
-#     test_block = db[channel_id][user_id]
-
-#     # Mark the pin task as completed.
-#     test_block.pin_task_completed = True
-
-#     # Get the new message payload
-#     message = test_block.get_message_payload()
-
-#     # Post the updated message in Slack
-#     updated_message = client.chat_update(**message)
-#     print(updated_message)
 
 async def start_slack():
     with app.app_context():

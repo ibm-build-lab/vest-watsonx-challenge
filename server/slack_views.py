@@ -1,74 +1,70 @@
 
-# Keep for reference...
-
-class TestBlock:
-    WELCOME_BLOCK = {
-        "type": "section",
-        "text": {
-            "type": "mrkdwn",
-            "text": (
-                "Slack api test! :wave:\n\n"
-                "*Try the following:*"
-            ),
+class HelpBlock:
+    DEFAULT_BLOCKS = [
+        {
+            "type": "divider"
         },
-    }
-    DIVIDER_BLOCK = {"type": "divider"}
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "You can ask me questions to get information about various technologies on the <https://vest.buildlab.cloud|Resell Lab website>"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Currently supported technologies: \n    • Maximo\n    • Instana"
+            }
+        },
+        {
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": "Usage"
+            }
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Use the `@resell-bot` App mention to ask a publicly visible question, and the slash command `/resell-bot` to ask a question that will only be visible to you. `help` will print this message and exit.\n\n `@resell-bot [help || <question>]` - Public message\n`/resell-bot [help || <question>]` - Private message"
+            }
+        }
+    ]
 
-    def __init__(self, channel):
+    def __init__(self, type, user, channel, is_dev):
+        self.type = type
+        self.user = user
         self.channel = channel
-        self.username = "Hackathon App"
-        self.icon_emoji = ":robot_face:"
-        self.timestamp = ""
-        self.reaction_task_completed = False
-        self.pin_task_completed = False
+        self.username = "Resell Bot"
+        self.dev = is_dev
 
     def get_message_payload(self):
+        blocks = self.DEFAULT_BLOCKS
+        if len(blocks) == 5: # Prevent adding multiple headers. (Python idiosynchrasy; looking into it.)
+            header_block = self._get_header_block(self.user, self.type, self.dev)
+            blocks.insert(0, header_block)
         return {
-            "ts": self.timestamp,
+            "user": self.user,
             "channel": self.channel,
             "username": self.username,
-            "icon_emoji": self.icon_emoji,
-            "blocks": [
-                self.WELCOME_BLOCK,
-                self.DIVIDER_BLOCK,
-                *self._get_reaction_block(),
-                self.DIVIDER_BLOCK,
-                *self._get_pin_block(),
-            ],
+            "blocks": blocks,
+            "text": "Failed to fetch message. Please try again."
         }
-
-    def _get_reaction_block(self):
-        task_checkmark = self._get_checkmark(self.reaction_task_completed)
-        text = (
-            f"{task_checkmark} *Add an emoji reaction to this message*\n"
-            "More text..."
-        )
-        information = (
-            ":information_source: *<https://api.slack.com/apis/connections/events-api|"
-            "Slack Events API>*"
-        )
-        return self._get_task_block(text, information)
-
-    def _get_pin_block(self):
-        task_checkmark = self._get_checkmark(self.pin_task_completed)
-        text = (
-            f"{task_checkmark} *Pin this message* :round_pushpin:\n"
-        )
-        information = (
-            ":information_source: *<https://api.slack.com/web"
-            "|Slack Web API>*"
-        )
-        return self._get_task_block(text, information)
-
+    
     @staticmethod
-    def _get_checkmark(task_completed: bool) -> str:
-        if task_completed:
-            return ":white_check_mark:"
-        return ":white_large_square:"
+    def _get_header_block(user, type, dev):
+        if type == 'home':
+            message = "Welcome to the Resell Lab Bot Homepage! :tada:"
+        else:
+            message = "How can I help?"
 
-    @staticmethod
-    def _get_task_block(text, information):
-        return [
-            {"type": "section", "text": {"type": "mrkdwn", "text": text}},
-            {"type": "context", "elements": [{"type": "mrkdwn", "text": information}]},
-        ]
+        return {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"{'DEV_BOT - ' if dev else ''}Hi , <@{user}>! {message}"
+            }
+        }
