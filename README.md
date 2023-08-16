@@ -48,7 +48,7 @@ Much like the previous command it will stand up a development instance of the ba
 
 A simple `Dockerfile` as well as a bash script to build an image has also been included in this repository if you wish to deploy via Docker.
 
-The `Docker` file will copy only what's needed to deploy the app (the `/client/dist` folder, `/server` folder, and `requirements.txt`) and expose the default port Flask uses.
+The `Docker` file will copy only what's needed to deploy the app (the `/client/dist` folder, `/server` folder, `prod_run.sh` and `requirements.txt`) and expose the default port Flask uses.
 
 The default image name that will be generated is the same as the package name in the `package.json`.
 
@@ -59,11 +59,14 @@ There are some docker utility commands in `package.json` as well, such as:
 
 ## Slack App testing for local development:
 
+*NOTE!* When running the dev server locally, both the deployed app and local devserver will be available. In order to separate the environments, only use the `#hackathon-bot-dev` channel for development.
+
 - Get latest slack env values from 1Password
 - Join the [team hackathon slack](https://join.slack.com/t/resell-lab-ibm/shared_invite/zt-20ehtfi1f-1zUl2F6_xlV0NS7EDeJSVg)
-- Join the workspace channel `hackathon-bot`
+- Join the workspace channel `#hackathon-bot-dev`. Note that we try to determine the product name sent to discovery from the channel name, with a fallback to keywords in the question. You won't be able to see this in development due to the channel constraint.
 - Start the Flask app and slack app with `npm run dev`
 - Try:
   - Mention the bot with `@resell-bot` in the hackathon-bot slack channel and looking at server logs to see how everything works.
-  - Slash command `/resell`
+  - Slash command `/resell-bot`
+  - Current parameters: `help` `<question>`
   - Open the resell-bot home page
